@@ -1,9 +1,5 @@
 ###Python###
 
-# Project specific
-test_images_output/
-test_videos_output/
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
