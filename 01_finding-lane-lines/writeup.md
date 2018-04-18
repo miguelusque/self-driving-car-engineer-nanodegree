@@ -34,15 +34,13 @@ My pipeline consisted of 5 steps.
 1. First, I convert the images to grayscale. To perform this transformation to the image, I have chosen to use the [OpenCV cvtColor](https://docs.opencv.org/2.4/modules/imgproc/doc/miscellaneous_transformations.html#cvtcolor) function.
 2. Then, I apply Gaussian smoothing to the function. Blurring the image is usefull to ignore imperfections in the image when detecting the lines in the next step. To perform this transformation to the image, I have chosen to use the [OpenCV GaussianBlur](https://docs.opencv.org/2.4/modules/imgproc/doc/filtering.html?highlight=gaussianblur#gaussianblur) function.
 3. The next step in my pipeline uses a canny edge detector to identify edges in the image. The OpenCv [Canny edge detector](https://docs.opencv.org/2.4/doc/tutorials/imgproc/imgtrans/canny_detector/canny_detector.html) has been used to perform this step.
-4. Then, a mask has been applied to the image to reduce the area where the lines should be detected. For instance, it is not very likely to find a lane line on the top of the image, where the sky is usually present. 
+4. Then, a mask has been applied to the image to reduce the area where the lines should be detected. For instance, it is not very likely to find a lane line on the top of the image, where the sky is usually present. That mask is considered the region of interest. The solution has been built to acept the region of interest as a parameter. That is useful when the images can be obtained from different locations in the car. 
 5. After that, a [Hough line transform](https://docs.opencv.org/2.4/doc/tutorials/imgproc/imgtrans/hough_lines/hough_lines.html) is used to detected straight lines in the image.
-6. Then, the images are grouped into two different sets (left_lane and right_lane) depending on its slope. In addition to that, the images of each set are sorted by its vertical position.
-7. For each set, the lowest vertical point is selected and a line from the bottom of the image to that point is drawn. The `x position` of that new line is calculated using [linear extrapolation](https://en.wikipedia.org/wiki/Extrapolation).
-8. Finally, a line from the lowest `y positon` to the highest `y position` is drawn per each lane lines set.
-9. To prevent errors, lines with a slope lower than 0.3 has not been drawn.
+6. Then, the lines are grouped into two different sets (left_lane and right_lane) depending on its slope. 
+7. The lines detected by the Hough lines detector, are used as input to the numpy's [polyfit](https://docs.scipy.org/doc/numpy/reference/generated/numpy.polyfit.html) function to determine the slope and bias of the left and right lane lines. The origin and end of the lines are calculated using the dimensions of the region of interest.
+9. To prevent errors, lines with a slope lower than 0.5 has not been drawn.
 
 ### 2. Identify potential shortcomings with your current pipeline
-
 
 One potential shortcoming with my current pipeline is  when the lane lines cannot be split into two different sets based on its slope. That might happen in a hairpin curve.   
 
@@ -50,5 +48,3 @@ One potential shortcoming with my current pipeline is  when the lane lines canno
 ### 3. Suggest possible improvements to your pipeline
 
 A possible improvement would be to split the line sets using a k-means algorithm.
-
-Also, it could be used a different method to extrapolate the positon of the lane lines between the bottom and the top of the images. Maybe ignoring the lines which are not between the Q1 and Q3 percentille might work.
