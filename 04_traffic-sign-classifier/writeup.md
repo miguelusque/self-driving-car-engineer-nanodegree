@@ -14,9 +14,9 @@ After training the model, it will be tried out on images of German traffic signs
 This project's source code can be found [here](https://github.com/miguelangel/sdc--traffic-sign-classifier).
 
 ---
-## Goals / Steps
+## Goals/Steps
 
-The goals / steps of this project are the following:
+The goals/steps of this project are the following:
 
 1. Load the data set from [here](https://s3-us-west-1.amazonaws.com/udacity-selfdrivingcar/traffic-signs-data.zip).
 2. Explore, summarize and visualize the data set
@@ -41,10 +41,10 @@ The goals / steps of this project are the following:
 
 ## Data Set Summary & Exploration
 
-The German Traffic Sign Dataset is composed by 51839 images, belonging each one to 1 of 43 different categories. 
+The German Traffic Sign Dataset is composed of 51839 images, belonging each one to 1 of 43 different categories. 
 
 
-The dataset is split in training, validation and testing subsets:
+The dataset is split into training, validation and testing subsets:
 
 | Subset     | # samples |
 |------------|-----------|
@@ -101,7 +101,7 @@ The 43 image categories are labeled as follows:
 | 42      | End of no passing by vehicles over 3.5 metric tons | 
 
 
-In order to obtain these metrics, the following code snippet has been used:
+To obtain these metrics, the following code snippet has been used:
 
 ```python
 import numpy as np
@@ -115,7 +115,7 @@ n_valid = X_valid.shape[0]
 # Number of testing examples.
 n_test = X_test.shape[0]
 
-# What's the shape of an traffic sign image?
+# What's the shape of a traffic sign image?
 image_shape = X_train.shape[1:]
 
 # How many unique classes/labels there are in the dataset.
@@ -270,37 +270,107 @@ Please notice that each of the images had a different size. They were rescaled p
 
 Here are the results of the prediction:
 
-| Image			        |     Prediction	        					| 
-|:---------------------:|:---------------------------------------------:| 
-| Yield          		| No passing for vehicles over 3.5 metric tons  | 
-| Stop       			| Stop   										|
-| Speed limit (70km/h)	| Speed limit (60km/h)							|
-| Speed limit (30km/h)	| Speed limit (30km/h)							|
-| Speed limit (50km/h)	| Speed limit (30km/h)							|
-| Speed limit (60km/h)	| Speed limit (60km/h)							|
-| Turn right ahead		| Turn right ahead		 	        			|
-| Keep left     		| Keep left                                     |
+| Image			            |     Prediction	        					                  | 
+|:---------------------:|:---------------------------------------------------:| 
+| Yield          		    | End of no passing by vehicles over 3.5 metric tons  | 
+| Stop       			      | Stop   			                    						      	|
+| Speed limit (70km/h)	| Turn left ahead						            	            |
+| Speed limit (30km/h)	| Speed limit (30km/h)				            		      	|
+| Speed limit (50km/h)	| Speed limit (30km/h)					                  		|
+| Speed limit (60km/h)	| Speed limit (60km/h)					            	      	|
+| Turn right ahead		  | Turn right ahead		 	        			                |
+| Keep left     		    | Keep left                                           |
 
 
 The model was able to correctly guess 5 of the 8 traffic signs, which gives an accuracy of 62.5%. 
 
 ### 5 Top softmax probabilities per prediction
 
-The code for making predictions on my final model is located in the 21th cell of the Ipython notebook.
+The code for making predictions on my final model is located in the 17th cell of the IPython notebook.
 
-For the first image, the model is relatively sure that this is a stop sign (probability of 0.6), and the image does contain a stop sign. The top five soft max probabilities were
+Please find below the top 5 softmax predictions per image.
 
-| Probability         	|     Prediction	        					| 
-|:---------------------:|:---------------------------------------------:| 
-| .60         			| Stop sign   									| 
-| .20     				| U-turn 										|
-| .05					| Yield											|
-| .04	      			| Bumpy Road					 				|
-| .01				    | Slippery Road      							|
+#### Sign 1: Yield.
+
+| Probability         	|     Prediction	        					                  | 
+|:---------------------:|:---------------------------------------------------:| 
+| .998         			    | End of no passing by vehicles over 3.5 metric tons  | 
+| .001     				      | Priority road 										                  |
+| .0001				          | Vehicles over 3.5 metric tons prohibited						|
+| ~0	      			      | No passing for vehicles over 3.5 metric tons        |
+| ~0				            | End of speed limit (80km/h)      					          |
+
+#### Sign 2: Stop.
+
+| Probability         	|     Prediction	        					                  | 
+|:---------------------:|:---------------------------------------------------:| 
+| .999         			    | Stop                                                | 
+| ~0	      			      | No passing for vehicles over 3.5 metric tons        |
+| ~0			  	          | No vehicles                                         |
+| ~0	      			      | Speed limit (80km/h)                                |
+| ~0	      			      | Speed limit (60km/h)                                |
+
+#### Sign 3: Speed limit (70km/h).
+
+| Probability         	|     Prediction	        					                  | 
+|:---------------------:|:---------------------------------------------------:| 
+| .904         			    | Turn left ahead                                     | 
+| .076	      			    | Speed limit (60km/h)                                |
+| .01			  	          | Go straight or right                                |
+| ~0	      			      | Keep right                                          |
+| ~0	      			      | Ahead only                                          |
+
+#### Sign 4: Speed limit (30km/h).
+
+| Probability         	|     Prediction	        					                  | 
+|:---------------------:|:---------------------------------------------------:| 
+| ~1           			    | Speed limit (30km/h)                                | 
+| ~0  	      			    | Speed limit (50km/h)                                |
+| ~0  	      			    | Speed limit (70km/h)                                |
+| ~0  	      			    | Speed limit (60km/h)                                |
+| ~0			  	          | No vehicles                                         |
+
+#### Sign 5: Speed limit (50km/h).
+
+| Probability         	|     Prediction	        					                  | 
+|:---------------------:|:---------------------------------------------------:| 
+| ~1           			    | Speed limit (30km/h)                                | 
+| ~0  	      			    | Speed limit (50km/h)                                |
+| ~0  	      			    | Speed limit (100km/h)                               |
+| ~0  	      			    | Stop                                                |
+| ~0			  	          | No vehicles                                         |
+
+#### Sign 6: Speed limit (60km/h).
+
+| Probability         	|     Prediction	        					                  | 
+|:---------------------:|:---------------------------------------------------:| 
+| .998         			    | Speed limit (60km/h)                                | 
+| .001  	        	    | Children crossing                                   |
+| ~0  	      			    | Speed limit (50km/h)                                |
+| ~0  	      			    | Speed limit (80km/h)                                |
+| ~0			  	          | No passing                                          |
+
+#### Sign 7: Turn right ahead.
+
+| Probability         	|     Prediction	        					                  | 
+|:---------------------:|:---------------------------------------------------:| 
+| .999         			    | Turn right ahead                                    | 
+| ~0  	      			    | Vehicles over 3.5 metric tons prohibited            |
+| ~0  	      			    | Speed limit (80km/h)                                |
+| ~0  	      			    | Speed limit (100km/h)                               |
+| ~0			  	          | Road narrows on the right                           |
+
+#### Sign 8: Keep left.
+
+| Probability         	|     Prediction	        					                  | 
+|:---------------------:|:---------------------------------------------------:| 
+| .999         			    | Keep left                                           | 
+| ~0  	      			    | Speed limit (120km/h)                               |
+| ~0  	      			    | Turn right ahead                                    |
+| ~0  	      			    | Wild animals crossing                               |
+| ~0  	      			    | Speed limit (20km/h)                                |
 
 
-For the second image ... 
+I really hope you have enjoyed reading this project as much I have done writing it for you.
 
-
-
-
+Miguel Ángel
