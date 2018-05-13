@@ -15,7 +15,6 @@ from sklearn.utils import shuffle
 np.random.seed(23)
 tf.set_random_seed(32)
 
-
 # Batch_size must be a multiple of 6 [6, 12, 18, 24...]
 def generator(samples, batch_size=36):
     num_samples = len(samples)
@@ -55,7 +54,7 @@ def generator(samples, batch_size=36):
                 
                     measurements.append(measurement)
 
-            # Flipping images And ateering measurements
+            # Flipping images and ateering measurements
             augmented_images, augmented_measurements = [], []
             for image, measurement in zip (images, measurements):
                 augmented_images.append(image)
