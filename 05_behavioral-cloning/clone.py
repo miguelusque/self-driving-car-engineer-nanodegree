@@ -10,7 +10,6 @@ from keras import optimizers
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
 
-
 # My humble tribute to Michael Jordan and Magic Johnson, 
 # the best basketball players ever. 
 np.random.seed(23)
