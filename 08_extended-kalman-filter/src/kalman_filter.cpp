@@ -43,17 +43,10 @@ void KalmanFilter::Update(const VectorXd &z) {
   std::cout << "KalmanFilter::Update" << std::endl;
  	VectorXd z_pred = H_ * x_;
 	VectorXd y = z - z_pred;
-	MatrixXd Ht = H_.transpose();
-	MatrixXd S = H_ * P_ * Ht + R_;
-	MatrixXd Si = S.inverse();
-	MatrixXd PHt = P_ * Ht;
-	MatrixXd K = PHt * Si;
 
-	//new estimate
-	x_ = x_ + (K * y);
-	long x_size = x_.size();
-	MatrixXd I = MatrixXd::Identity(x_size, x_size);
-	P_ = (I - K * H_) * P_;
+  // Update the remaining values.
+  // This is common for Lidar and Radar
+  UpdateCommon(y);
 }
 
 void KalmanFilter::UpdateEKF(const VectorXd &z) {
@@ -93,12 +86,17 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
   // Normalizing Angles between -pi and pi
   y[1] = atan2(sin(y[1]), cos(y[1]));
 
-  // The following code is quite similar to KalmanFilter::Update() function.
-  // I have prefered to repeat it for readability purposes.
+
+  // Update the remaining values.
+  // This is common for Lidar and Radar
+  UpdateCommon(y);
+}
+
+void KalmanFilter::UpdateCommon(const VectorXd &y) {
 	MatrixXd Ht = H_.transpose();
-	MatrixXd S = H_ * P_ * Ht + R_;
-	MatrixXd Si = S.inverse();
 	MatrixXd PHt = P_ * Ht;
+  MatrixXd S = H_ * PHt + R_;
+	MatrixXd Si = S.inverse();
 	MatrixXd K = PHt * Si;
 
 	//new estimate

@@ -64,6 +64,12 @@ public:
    */
   void UpdateEKF(const Eigen::VectorXd &z);
 
+  /**
+   * Updates common state for both Lidar and Radar
+   * @param y
+   */
+  void UpdateCommon(const Eigen::VectorXd &y);
+
 };
 
 #endif /* KALMAN_FILTER_H_ */
