@@ -42,6 +42,16 @@ class UKF {
   void UpdateRadar(MeasurementPackage meas_package);
 
 
+  /**
+   * Updates the state and the state covariance matrix using a radar measurement
+   * @param meas_package The measurement at k+1
+   * @param n_z dimmension
+   * @param Zsig prediction in measurement space
+   * @param R noise matrix
+   */
+  void UpdateCommon(MeasurementPackage meas_package, int n_z, Eigen::MatrixXd Zsig, Eigen::MatrixXd R);
+
+
   // initially set to false, set to true in first call of ProcessMeasurement
   bool is_initialized_;
 
