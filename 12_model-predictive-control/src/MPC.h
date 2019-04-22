@@ -4,6 +4,14 @@
 #include <vector>
 #include "Eigen-3.3/Eigen/Core"
 
+typedef struct
+{
+    double throttle;
+    double steering;
+    std::vector<double> x_vals;
+    std::vector<double> y_vals;
+} MPC_Results;
+
 class MPC {
  public:
   MPC();
@@ -12,7 +20,7 @@ class MPC {
 
   // Solve the model given an initial state and polynomial coefficients.
   // Return the first actuations.
-  std::vector<double> Solve(const Eigen::VectorXd &state, 
+  MPC_Results Solve(const Eigen::VectorXd &state, 
                             const Eigen::VectorXd &coeffs);
 };
 
