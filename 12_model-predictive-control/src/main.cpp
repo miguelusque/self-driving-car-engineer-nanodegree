@@ -57,10 +57,11 @@ int main() {
            */
           // calculate waypoints in car coordinates
 
-          // Deal with latency
+          // A couple of pre-calculated values
           double cos_psi = cos(psi);
           double sin_psi = sin(psi); 
 
+          // Deal with latency
           px = px + v * cos_psi * latency;
           py = py + v * sin_psi * latency;
           psi = psi - v * steering / 2.67 * latency;

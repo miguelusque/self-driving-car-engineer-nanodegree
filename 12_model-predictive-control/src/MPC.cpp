@@ -60,9 +60,9 @@ class FG_eval {
     // reference state cost error
     for (size_t t = 0; t < N; t++)
     {
-        fg[0] += 20 * CppAD::pow(vars[cte_i  + t], 2);
-        fg[0] += 20 * CppAD::pow(vars[epsi_i + t], 2);
-        fg[0] += 1  * CppAD::pow(vars[v_i    + t] - v_ref, 2);
+        fg[0] += CppAD::pow(vars[cte_i  + t], 2);
+        fg[0] += CppAD::pow(vars[epsi_i + t], 2);
+        fg[0] += CppAD::pow(vars[v_i    + t] - v_ref, 2);
     }
     
     // control
