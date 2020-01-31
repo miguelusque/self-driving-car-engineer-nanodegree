@@ -58,9 +58,7 @@ int main() {
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
     if (length && length > 2 && data[0] == '4' && data[1] == '2') {
-
       auto s = hasData(data);
-
       if (s != "") {
         auto j = json::parse(s);
         
@@ -98,7 +96,13 @@ int main() {
            *   sequentially every .02 seconds
            */
 
+          double dist_inc = 0.5;
+          for (int i = 0; i < 50; i++) {
+            next_x_vals.push_back(car_x + (dist_inc * i) * cos(deg2rad(car_yaw)));
+            next_y_vals.push_back(car_y + (dist_inc * i) * sin(deg2rad(car_yaw)));
+          }
 
+          // END TODO
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
 
