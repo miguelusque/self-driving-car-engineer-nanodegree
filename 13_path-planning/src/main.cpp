@@ -54,8 +54,8 @@ int main() {
   // start on lane 1
   int lane = 1;
 
-  // have a reference velocity to target
-  double ref_vel = 49.5; // mph
+  // Inicial velocity, and also reference velocity to target.
+  double ref_vel = 0.0; // mph
 
   h.onMessage([&ref_vel,
                &map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
@@ -124,6 +124,11 @@ int main() {
                 // ... doo some logic here, lower reference velocity so we don't crash into the car infront of us,
                 // could also flag to try to change lanes.
                 too_close = true;
+
+                // Change lane when possible
+                if (lane > 0) {
+                  lane = 0;
+                }
               }
             }
           }
