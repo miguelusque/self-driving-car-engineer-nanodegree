@@ -99,6 +99,8 @@ int main() {
             car_s = end_path_s;
           }
 
+          bool too_close = false;
+
           // find ref_v to use
           for (int i = 0; i < sensor_fusion.size(); i++) {
             // check if a car is in my lane.
@@ -121,15 +123,16 @@ int main() {
               if ((check_car_s > car_s) && ((check_car_s - car_s) < 30)) {
                 // ... doo some logic here, lower reference velocity so we don't crash into the car infront of us,
                 // could also flag to try to change lanes.
-                ref_vel = 29.5; // mph
+                too_close = true;
               }
             }
           }
 
-
-
-
-
+          if (too_close) {
+            ref_vel -= .224; // ~5 m/s
+          } else if (ref_vel < 49.5) {
+            ref_vel += .224;            
+          }
 
           // Create a list of widely spaced (x, y) waypoints, evenly spaced at 30m.
           // Later, we will interpolate these waypoints with a spline and fill it in with more points that control speed.
