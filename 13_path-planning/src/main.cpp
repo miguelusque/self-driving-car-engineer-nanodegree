@@ -90,10 +90,46 @@ int main() {
           double end_path_d = j[1]["end_path_d"];
 
           // Sensor Fusion Data, a list of all other cars on the same side of the road.
-          // auto sensor_fusion = j[1]["sensor_fusion"];
           vector<vector<double>> sensor_fusion = j[1]["sensor_fusion"];
 
           int prev_size = previous_path_x.size();
+
+          // Avoid collisions - Init
+          if (prev_size > 0) {
+            car_s = end_path_s;
+          }
+
+          // find ref_v to use
+          for (int i = 0; i < sensor_fusion.size(); i++) {
+            // check if a car is in my lane.
+            float d = sensor_fusion[i][6];
+            if (d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2)) {
+
+              // x and y velocity. Used to calculate the other car speed.
+              double vx = sensor_fusion[i][3]; 
+              double vy = sensor_fusion[i][4];
+              double check_speed = sqrt((vx * vx) + (vy * vy));
+
+              // s position of the other car.
+              double check_car_s = sensor_fusion[i][5];
+
+              // if using previous points, we can project s value outwards in time.
+              check_car_s += ((double) prev_size * 0.02 * check_speed);
+
+              // check s values greater than mine and s gap
+              // If the other car is in front of us and the distance is less than 30 meters...
+              if ((check_car_s > car_s) && ((check_car_s - car_s) < 30)) {
+                // ... doo some logic here, lower reference velocity so we don't crash into the car infront of us,
+                // could also flag to try to change lanes.
+                ref_vel = 29.5; // mph
+              }
+            }
+          }
+
+
+
+
+
 
           // Create a list of widely spaced (x, y) waypoints, evenly spaced at 30m.
           // Later, we will interpolate these waypoints with a spline and fill it in with more points that control speed.
