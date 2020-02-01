@@ -1,8 +1,10 @@
-#include <uWS/uWS.h>
 #include <fstream>
+#include <algorithm>
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <vector>
+#include <uWS/uWS.h>
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "helpers.h"
@@ -101,41 +103,89 @@ int main() {
 
           bool too_close = false;
 
+          // Calculate gap in other lanes
+          vector<vector<double>> check_cars_s = {{}, {}, {}};
+          
           // find ref_v to use
           for (int i = 0; i < sensor_fusion.size(); i++) {
             // check if a car is in my lane.
             float d = sensor_fusion[i][6];
-            if (d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2)) {
 
-              // x and y velocity. Used to calculate the other car speed.
-              double vx = sensor_fusion[i][3]; 
-              double vy = sensor_fusion[i][4];
-              double check_speed = sqrt((vx * vx) + (vy * vy));
+            // x and y velocity. Used to calculate the other car speed.
+            double vx = sensor_fusion[i][3]; 
+            double vy = sensor_fusion[i][4];
+            double check_speed = sqrt((vx * vx) + (vy * vy));
 
-              // s position of the other car.
-              double check_car_s = sensor_fusion[i][5];
+            // s position of the other car.
+            double check_car_s = sensor_fusion[i][5];
 
-              // if using previous points, we can project s value outwards in time.
-              check_car_s += ((double) prev_size * 0.02 * check_speed);
+            // if using previous points, we can project s value outwards in time.
+            check_car_s += ((double) prev_size * 0.02 * check_speed);
 
+            if (d > (2 + 4 * lane - 2) && d < (2 + 4 * lane + 2)) {
               // check s values greater than mine and s gap
               // If the other car is in front of us and the distance is less than 30 meters...
               if ((check_car_s > car_s) && ((check_car_s - car_s) < 30)) {
                 // ... doo some logic here, lower reference velocity so we don't crash into the car infront of us,
                 // could also flag to try to change lanes.
                 too_close = true;
-
-                // Change lane when possible
-                if (lane > 0) {
-                  lane = 0;
-                }
               }
+            } else if (too_close) {
+              // Calculate in which lane the other car is
+              int check_car_lane;
+              if (d < 4) {
+                check_car_lane = 0;
+              } else if (d >= 4 && d <= 8) {
+                check_car_lane = 1;
+              } else if (d > 8 && d <= 12) {
+                check_car_lane = 2;
+              }
+
+              // Add to its corresponding lane the s position of the other car
+              check_cars_s[check_car_lane].push_back(check_car_s);
             }
           }
 
           if (too_close) {
+            // Calculate lane to change, if feasible.
+            int next_lane = -1; // Lane to which we will like to move
+            int best_gap = 0.0; // Longest gap between our car and others car
+            const double min_gap = 100; // Minimun distance to perform a safe lane change
+            for (int i = 0; i < check_cars_s.size(); i++) {
+              // Per lane, sort other cars positions
+              std::sort(check_cars_s[i].begin(), check_cars_s[i].end());
+              for (int j = 0; j < check_cars_s[i].size(); j++){
+                double cur_gap = car_s - check_cars_s[i][j]; // Distance between ego-car and current car
+                // If there are more cars ahead the current car
+                if (j + 1 < check_cars_s[i].size()) {
+                  // Calculate distance between the current car and the next car
+                  double next_cur_gap = check_cars_s[i][j+1] - check_cars_s[i][j];
+                  if ((cur_gap > min_gap && next_cur_gap > min_gap && cur_gap > best_gap) || 
+                      (-cur_gap > min_gap && -cur_gap > best_gap)) {
+                    best_gap = cur_gap;
+                    next_lane = i;
+                    std::cout << cur_gap << ", " << next_cur_gap << ", " << best_gap << std::endl;
+                  }
+                } else if ((cur_gap > min_gap && cur_gap > best_gap) ||
+                          (-cur_gap > min_gap && -cur_gap > best_gap)) {
+                    best_gap = cur_gap;
+                    next_lane = i;
+                    std::cout << cur_gap << ", " << ", " << best_gap << std::endl;
+                }
+              }
+            }
+
+            // Check if it is feasible to change lanes
+            if (next_lane != -1 && abs(next_lane - lane) == 1) {
+              // Change lane when possible
+              std::cout << lane << ", " << next_lane << std::endl;
+              lane = next_lane;
+            }
+
+            // Decrease velocity because we are getting close to a car
             ref_vel -= .224; // ~5 m/s
           } else if (ref_vel < 49.5) {
+            // Increase velocity because we are not close to a car
             ref_vel += .224;            
           }
 
