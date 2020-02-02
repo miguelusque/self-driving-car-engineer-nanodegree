@@ -1,6 +1,6 @@
-#include <fstream>
 #include <algorithm>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -64,8 +64,6 @@ int main() {
   bool is_changing_lane = false;
   double end_change_lane_s = 0.0;
 
-  // TODO: DELETE ME
-  
   std::cout << std::setprecision(2) << std::fixed;
 
   h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
@@ -76,6 +74,8 @@ int main() {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
+    const double max_vel = 49.7;
+    const double vel_inc = .224;
     if (length && length > 2 && data[0] == '4' && data[1] == '2') {
       auto s = hasData(data);
       if (s != "") {
@@ -111,28 +111,26 @@ int main() {
           }
 
           // Check if a change lane has finished
-// DELETEME          std::cout << (is_changing_lane ? "*" : " ") << "\t\t(" << car_s << ",\t" << end_change_lane_s << ")";
-          if (is_changing_lane && (car_s >= end_change_lane_s)) { 
-// DELETEME            std::cout << "\t\t" << "Change lane finished";
+          if (is_changing_lane && (car_s >= end_change_lane_s)) {
             is_changing_lane = false;
             end_change_lane_s = 0.0;
           }
-// DELETEME          std::cout << std::endl;
 
           bool too_close = false;
           const double safe_distance = 30.0; // Safe distance between the ego-car and the car ahead of it.
           const double target_x = 30.0; // This is our horizon, 30 meters.
 
-          // Calculate gap in other lanes
-          vector<vector<double>> check_cars_s = {{}, {}, {}};
-          
+          // Sensor data of any car in a different lanes than ego-car.
+          vector<vector<double>> uncurated_data_s = {{}, {}, {}};
+          vector<vector<double>> curated_data_s = {};
+
           // find ref_v to use
           for (int i = 0; i < sensor_fusion.size(); i++) {
             // check if a car is in my lane.
             float d = sensor_fusion[i][6];
 
             // x and y velocity. Used to calculate the other car speed.
-            double vx = sensor_fusion[i][3]; 
+            double vx = sensor_fusion[i][3];
             double vy = sensor_fusion[i][4];
             double check_speed = sqrt((vx * vx) + (vy * vy));
 
@@ -150,87 +148,140 @@ int main() {
                 // could also flag to try to change lanes.
                 too_close = true;
               }
-            } else if (too_close && !is_changing_lane) {
+            } else if (!is_changing_lane) {
               // Calculate in which lane the other car is
               int check_car_lane;
               if (d < 4) {
                 check_car_lane = 0;
               } else if (d >= 4 && d <= 8) {
                 check_car_lane = 1;
-              } else if (d > 8 && d <= 12) {
+              } else {
                 check_car_lane = 2;
               }
 
-              std::cout << lane << "\t\t" << check_car_lane << std::endl;
-
               // Add sensed-car measures if the sensed-car is at a distance of 1 lane from ego-car
               if (abs(lane - check_car_lane) == 1) {
-                check_cars_s[check_car_lane].push_back(check_car_s);
+                uncurated_data_s[check_car_lane].push_back(check_car_s);
               }
             }
           }
 
+          bool change_empty_lane = false;
+          int next_lane = -1; // Lane to which we would like to change
           if (too_close && !is_changing_lane) {
-            // Decrease velocity ~5 m/s because we are getting close to a car 
+            // Decrease velocity ~5 m/s because we are getting close to a car
             ref_vel -= .224;
+
+            // When the ego-car completes a loop, chances are that its s position
+            // is much smaller than the sensed-car data.
+            // We will ignore that data until the ego-car and the sensed-data
+            // are in the same scale (both are at the beginning of the loop.)
+            const double prevent_loop = 1000.0;
+            // Curate data
+            for (int i = 0; i < uncurated_data_s.size(); i++) {
+              // Per lane, sort other cars positions
+              std::sort(uncurated_data_s[i].begin(), uncurated_data_s[i].end());
+              vector<double> lane_data_s = {};
+              for (int j = 0; j < uncurated_data_s[i].size(); j++) {
+                // If the sensed-car is behind the ego-car
+                if (car_s > uncurated_data_s[i][j]) {
+                  // Add the sensed-car only if either there is no more sensed data or the next car
+                  if (!(j + 1 < uncurated_data_s[i].size() && car_s > uncurated_data_s[i][j + 1])) {
+                    lane_data_s.push_back(uncurated_data_s[i][j]);
+                  }
+                } else if (uncurated_data_s[i][j] - car_s < prevent_loop) {
+                  lane_data_s.push_back(uncurated_data_s[i][j]);
+                  break;
+                }
+              }
+              curated_data_s.push_back(lane_data_s);
+
+              for (int i = 0; i < curated_data_s.size(); i++) {
+                // A lane without any sensed-data should be prefered over any other lane.
+                // I will add some 'fake' data to that lane to let the loop above to select
+                // that lane over any other lane.
+                if (abs(i - lane) == 1 && curated_data_s[i].size() == 0) {
+                  // Change to the lane where there is no sensed-cars, from left to right
+                  next_lane = i;
+
+                  // Do not try a new lane until current lane change has finished.
+                  is_changing_lane = true;
+
+                  // The lane change has finished when car_s >= end_change_lane_s
+                  end_change_lane_s = car_s + target_x * 3;
+                  std::cout << lane << " --> " << next_lane << "\tCHANGE EMPTY LANE" << std::endl;
+                  change_empty_lane = true;
+                  break;
+                }
+              }
+            }
+
+            std::cout << "******************************************************" << std::endl;
+            std::cout << "UnCurated dataset: " << std::endl;
+            for (int i = 0; i < uncurated_data_s.size(); i++) {
+              if (uncurated_data_s[i].size() == 0) { continue; }
+              std::cout << i << " -\t";
+              for (int j = 0; j < uncurated_data_s[i].size(); j++) {
+                std::cout << uncurated_data_s[i][j] << "\t";
+              }
+              std::cout << std::endl;
+            }
+            std::cout << "-------" << std::endl;
+            std::cout << "Ego-car s pos: " << car_s << std::endl;
+            for (int i = 0; i < curated_data_s.size(); i++) {
+              if (curated_data_s[i].size() == 0) { continue; }
+              std::cout << i << " -\t";
+              for (int j = 0; j < curated_data_s[i].size(); j++) {
+                std::cout << curated_data_s[i][j] << "\t";
+              }
+              std::cout << std::endl;
+            }
 
             // Calculate lane to change, if feasible.
             const double safe_gap = 30; // Minimun distance to perform a safe lane change
-
-            int next_lane = -1; // Lane to which we would like to change
             double best_gap = 0.0; // Longest gap between our car and others car
-            for (int i = 0; i < check_cars_s.size(); i++) {
-              // Per lane, sort other cars positions
-              std::sort(check_cars_s[i].begin(), check_cars_s[i].end());
-              for (int j = 0; j < check_cars_s[i].size(); j++) { 
+            for (int i = 0; !change_empty_lane && i < curated_data_s.size(); i++) {
+              for (int j = 0; j < curated_data_s[i].size(); j++) {
                 // If the sensed-car is behind the ego-car
-                if (car_s > check_cars_s[i][j]) {
-                  // Do not consider to change lanes if there is not enough safe distance
-                  if (car_s - check_cars_s[i][j] < safe_gap) { 
-                    std::cout << "NO1" << "\t\t" << lane << "\t\t" <<  best_gap << "\t\t" << check_cars_s[i][j] << std::endl;
+                if (car_s > curated_data_s[i][j]) {
+                  // Do not consider to change lanes if there is not enough
+                  // safe distance with the car behind the ego-car
+                  if (car_s - curated_data_s[i][j] < safe_gap) {
+                    std::cout << i << "\tDISTANCE WITH CAR BEHIND UNSAFE" << "\t\t" <<  best_gap << "\t\t" << car_s - curated_data_s[i][j] << std::endl;
                     break; // Do not continue with other sensed car in this lane.
                   } else {
-                      // Check if there are remaining cars to process
-                      if (j + 1 < check_cars_s[i].size()) {
-                        // Do not consider yet to change lanes if the next sensed-car is also behind the ego car
-                        if (car_s > check_cars_s[i][j + 1]) {
-                          std::cout << "NO2" << "\t\t" << lane << "\t\t" << best_gap << "\t\t" << check_cars_s[i][j] << "\t\t" << abs(check_cars_s[i][j + 1]) << std::endl;
-                          continue;
-                        } else {
-                          // The next sensed-car is ahead the ego-car, and the distance is >= safe_gap
-                          if (check_cars_s[i][j + 1] - car_s < safe_gap) {
-                            // Do not consider to change lanes if there is not enough safe distance with the car ahead
-                            std::cout << "NO3" << "\t\t" << lane << "\t\t" << best_gap << "\t\t" << check_cars_s[i][j] << "\t\t" << abs(check_cars_s[i][j + 1]) << std::endl;
-                            break; // Do not continue with other sensed car in this lane.
-                          } else if (best_gap < car_s - check_cars_s[i][j]) {
-                              // There is enough space between the ego-car and the car ahead.
-                              // Because the gap is better than previous gaps, use this lane.
-                              best_gap = check_cars_s[i][j + 1] - car_s;
-                              next_lane = i;
-                              std::cout << "YE2" << "\t\t" << lane << "\t\t" << best_gap << "\t\t" << check_cars_s[i][j] << "\t\t" << abs(check_cars_s[i][j + 1]) << std::endl;
-                              break; // Do not continue with other sensed car in this lane.
-                          }
-                        }
-                      }  else if (best_gap < car_s - check_cars_s[i][j]) {
-                          // There are not remaining cars, and the distance between the sensed-car and the ego car is >= safe_gap
-                          // Therefore, it is safe to change lanes if there are not better options already calculates
-
-                          best_gap = car_s - check_cars_s[i][j];
+                    // Check if there is a car ahead of the ego-car
+                    if (j + 1 < curated_data_s[i].size()) {
+                        // Do not consider to change lanes if there is not enough safe distance with the car ahead
+                      if (curated_data_s[i][j + 1] - car_s < safe_gap) {
+                        std::cout << i << "\tDISTANCE WITH CAR AHEAD UNSAFE" << "\t\t" << best_gap << "\t\t" << curated_data_s[i][j + 1] - car_s << std::endl;
+                        break; // Do not continue with other sensed car in this lane.
+                      } else if (best_gap < car_s - curated_data_s[i][j + 1]) {
+                          // There is enough space between the ego-car and the car ahead.
+                          // Because the gap is better than previous gaps, use this lane.
+                          best_gap = car_s - curated_data_s[i][j + 1];
                           next_lane = i;
-                          std::cout << "YE1" << "\t\t" << lane << "\t\t" << best_gap << "\t\t" << check_cars_s[i][j] << std::endl;
-                      }     
+                          std::cout << i << "\tYES 2" << "\t\t" << lane << " --> " << next_lane << "\t\t" << best_gap << std::endl;
+                          break; // Do not continue with other sensed car in this lane.
+                      }
+                    }  else if (best_gap < car_s - curated_data_s[i][j]) {
+                        // There are not remaining cars, and the distance between the sensed-car and the ego-car is >= safe_gap
+                        // Therefore, it is safe to change lanes if there are not better options already calculates
+                        best_gap = car_s - curated_data_s[i][j];
+                        next_lane = i;
+                        std::cout << i << "\tYES 1" << "\t\t" << lane << " --> " << next_lane << "\t\t" << best_gap << std::endl;
+                    }
                   }
                 } else {
                   // If the sensed-car is ahead of the ego-car
-                  if (check_cars_s[i][j] - car_s < safe_gap) { 
-                    std::cout << "NO9" << "\t\t" << lane << "\t\t" <<  best_gap << "\t\t" << check_cars_s[i][j] << std::endl;
-                    break; // Do not continue with other sensed-car in this lane.
-                  } else if (best_gap < car_s - check_cars_s[i][j]) {
+                  if (curated_data_s[i][j] - car_s < safe_gap) {
+                    std::cout << i << "\tDISTANCE WITH CAR AHEAD UNSAFE" << "\t\t" <<  best_gap << "\t\t" << curated_data_s[i][j] - car_s << std::endl;
+                  } else if (best_gap < curated_data_s[i][j] - car_s) {
                     // There is enough space between the ego-car and the car ahead.
                     // Because the gap is better than previous gaps, use this lane.
-                    best_gap = check_cars_s[i][j + 1] - car_s;
+                    best_gap = curated_data_s[i][j] - car_s;
                     next_lane = i;
-                    std::cout << "YE2" << "\t\t" << lane << "\t\t" << best_gap << "\t\t" << check_cars_s[i][j] << "\t\t" << abs(check_cars_s[i][j + 1]) << std::endl;
+                    std::cout << "\tYES 3" << "\t\t" << lane << " --> " << next_lane << "\t\t" << best_gap << std::endl;
                     break; // Do not continue with other sensed car in this lane.
                   }
                 }
@@ -245,22 +296,22 @@ int main() {
                 } else {
                   next_lane = lane - 1;
                 }
-                
+
                 // Do not try a new lane until current lane change has finished.
                 is_changing_lane = true;
 
                 // The lane change has finished when car_s >= end_change_lane_s
-                end_change_lane_s = car_s + target_x;                  
-                std::cout << lane << " --> " << next_lane << std::endl;                      
-            } 
+                end_change_lane_s = car_s + target_x;
+                std::cout << lane << " --> " << next_lane << std::endl;
+            }
 
 
             // Check if it is feasible to change lanes
             if (next_lane != -1) {
               lane = next_lane;
             }
-          } else if (ref_vel < 49.7) {
-            ref_vel += .224; // Increase velocity because we are not close to a car  
+          } else if (ref_vel < max_vel) {
+            ref_vel += vel_inc; // Increase velocity because we are not close to a car
           }
 
           // Create a list of widely spaced (x, y) waypoints, evenly spaced at 30m.
@@ -314,8 +365,6 @@ int main() {
           ptsy.push_back(next_wp1[1]);
           ptsy.push_back(next_wp2[1]);
 
-
-
           for (int i = 0; i < ptsx.size(); i++) {
             // Shift car reference angle to 0 degrees
             double shift_x = ptsx[i] - ref_x;
@@ -326,7 +375,7 @@ int main() {
           }
 
           // Create a spline
-          tk::spline s; 
+          tk::spline s;
 
           // Set (x, y) points to the spline
           s.set_points(ptsx, ptsy);
@@ -374,7 +423,7 @@ int main() {
 
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
-        
+
           auto msg = "42[\"control\","+ msgJson.dump()+"]";
 
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
@@ -404,6 +453,6 @@ int main() {
     std::cerr << "Failed to listen to port" << std::endl;
     return -1;
   }
-  
+
   h.run();
 }
